@@ -24,7 +24,7 @@ RUN --mount=type=tmpfs,target=/run/verify \
     sq verify \
       --cleartext \
       --signer-file /run/verify/project.gpg \
-      --signer "${PROJECT_SIGNING_FINGERPRINT}" \
+      --signer "${PROJECT_FINGERPRINT}" \
       --output /run/verify/zlib.lock \
       "/trust/zlib-${ZLIB_VERSION}.asc"; \
     grep -Fq "${PROJECT_FINGERPRINT}" \
