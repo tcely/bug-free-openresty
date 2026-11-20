@@ -12,12 +12,13 @@ ARG ZLIB_SOURCE_URL="https://github.com/madler/zlib/releases/download/v${ZLIB_VE
 COPY "trust/zlib-${ZLIB_VERSION}.asc" "/trust/zlib-${ZLIB_VERSION}.asc"
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl sq \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg python3 sq \
     && rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=tmpfs,target=/run/verify \
     set -eu; \
-    mkdir -p /out /verified; \
+    mkdir -p /out /verified /run/verify/cert-store /run/verify/gnupg; \
+    chmod 00700 /run/verify/gnupg; \
     curl --fail --show-error --location --proto '=https' \
       "${PROJECT_PUBLIC_KEY_URL}" -o /run/verify/project.gpg; \
     sq --cert-store=/run/verify/cert-store cert import \
@@ -28,6 +29,35 @@ RUN --mount=type=tmpfs,target=/run/verify \
       --signer "${PROJECT_FINGERPRINT}" \
       --output /run/verify/zlib.lock \
       "/trust/zlib-${ZLIB_VERSION}.asc"; \
+    gpg --homedir /run/verify/gnupg --batch --no-tty \
+      --import /run/verify/project.gpg; \
+    gpg --homedir /run/verify/gnupg --batch --no-tty \
+      --status-fd 3 3>/run/verify/gpg.status --verify \
+      "/trust/zlib-${ZLIB_VERSION}.asc"; \
+    python3 - "${PROJECT_SIGNING_FINGERPRINT}" \
+    "${PROJECT_FINGERPRINT}" /run/verify/gpg.status <<'PY' \
+import sys \
+expected_signer = sys.argv[1].replace(" ", "").upper() \
+expected_primary = sys.argv[2].replace(" ", "").upper() \
+status_path = sys.argv[3] \
+with open(status_path, encoding="ascii") as f: \
+    valid = [ \
+        line.split() \
+        for line in f \
+        if line.startswith("[GNUPG:] VALIDSIG ") \
+    ] \
+if len(valid) != 1: \
+    raise SystemExit(f"expected exactly one valid signature, got {len(valid)}") \
+fields = valid[0] \
+if len(fields) != 12: \
+    raise SystemExit("VALIDSIG did not include the primary-key fingerprint") \
+actual_signer = fields[2].upper() \
+actual_primary = fields[11].upper() \
+if actual_signer != expected_signer: \
+    raise SystemExit(f"wrong signing key: {actual_signer}") \
+if actual_primary != expected_primary: \
+    raise SystemExit(f"wrong primary key: {actual_primary}") \
+PY\
     tagged="$(grep -e '^SHA256 [(]' /run/verify/zlib.lock)"; \
     curl --fail --show-error --location --proto '=https' \
       "${ZLIB_SOURCE_URL}" -o "/out/zlib-${ZLIB_VERSION}.tar.gz"; \
