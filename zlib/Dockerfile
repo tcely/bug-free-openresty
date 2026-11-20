@@ -27,8 +27,6 @@ RUN --mount=type=tmpfs,target=/run/verify \
       --signer "${PROJECT_FINGERPRINT}" \
       --output /run/verify/zlib.lock \
       "/trust/zlib-${ZLIB_VERSION}.asc"; \
-    grep -Fq "${PROJECT_FINGERPRINT}" \
-      "$(sq inspect /run/verify/project.gpg)"; \
     tagged="$(grep -e '^SHA256 [(]' /run/verify/zlib.lock)"; \
     curl --fail --show-error --location --proto '=https' \
       "${ZLIB_SOURCE_URL}" -o "/out/zlib-${ZLIB_VERSION}.tar.gz"; \
