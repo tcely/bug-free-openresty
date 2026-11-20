@@ -25,7 +25,7 @@ RUN --mount=type=tmpfs,target=/run/verify \
     sq --cert-store=/run/verify/cert-store verify \
       --cleartext \
       --signer-file /run/verify/project.gpg \
-      --signer "${PROJECT_SIGNING_FINGERPRINT}" \
+      --signer "${PROJECT_FINGERPRINT}" \
       --output /run/verify/zlib.lock \
       "/trust/zlib-${ZLIB_VERSION}.asc"; \
     tagged="$(grep -e '^SHA256 [(]' /run/verify/zlib.lock)"; \
