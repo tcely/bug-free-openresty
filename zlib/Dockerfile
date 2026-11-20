@@ -20,7 +20,8 @@ RUN --mount=type=tmpfs,target=/run/verify \
     mkdir -p /out /verified; \
     curl --fail --show-error --location --proto '=https' \
       "${PROJECT_PUBLIC_KEY_URL}" -o /run/verify/project.gpg; \
-    sq --cert-store=none verify \
+    sq cert import /run/verify/project.gpg; \
+    sq verify \
       --cleartext \
       --signer-file /run/verify/project.gpg \
       --signer "${PROJECT_SIGNING_FINGERPRINT}" \
