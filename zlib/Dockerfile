@@ -20,11 +20,12 @@ RUN --mount=type=tmpfs,target=/run/verify \
     mkdir -p /out /verified; \
     curl --fail --show-error --location --proto '=https' \
       "${PROJECT_PUBLIC_KEY_URL}" -o /run/verify/project.gpg; \
-    sq cert import /run/verify/project.gpg; \
-    sq verify \
+    sq --cert-store=/run/verify/cert-store cert import \
+      /run/verify/project.gpg; \
+    sq --cert-store=/run/verify/cert-store verify \
       --cleartext \
       --signer-file /run/verify/project.gpg \
-      --signer "${PROJECT_FINGERPRINT}" \
+      --signer "${PROJECT_SIGNING_FINGERPRINT}" \
       --output /run/verify/zlib.lock \
       "/trust/zlib-${ZLIB_VERSION}.asc"; \
     tagged="$(grep -e '^SHA256 [(]' /run/verify/zlib.lock)"; \
