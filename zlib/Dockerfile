@@ -57,7 +57,7 @@ if actual_signer != expected_signer: \
     raise SystemExit(f"wrong signing key: {actual_signer}") \
 if actual_primary != expected_primary: \
     raise SystemExit(f"wrong primary key: {actual_primary}") \
-PY\
+PY \
     tagged="$(grep -e '^SHA256 [(]' /run/verify/zlib.lock)"; \
     curl --fail --show-error --location --proto '=https' \
       "${ZLIB_SOURCE_URL}" -o "/out/zlib-${ZLIB_VERSION}.tar.gz"; \
