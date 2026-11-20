@@ -34,30 +34,32 @@ RUN --mount=type=tmpfs,target=/run/verify \
     gpg --homedir /run/verify/gnupg --batch --no-tty \
       --status-fd 3 3>/run/verify/gpg.status --verify \
       "/trust/zlib-${ZLIB_VERSION}.asc"; \
-    python3 - "${PROJECT_SIGNING_FINGERPRINT}" \
-    "${PROJECT_FINGERPRINT}" /run/verify/gpg.status <<'PY' \
-import sys \
-expected_signer = sys.argv[1].replace(" ", "").upper() \
-expected_primary = sys.argv[2].replace(" ", "").upper() \
-status_path = sys.argv[3] \
-with open(status_path, encoding="ascii") as f: \
-    valid = [ \
-        line.split() \
-        for line in f \
-        if line.startswith("[GNUPG:] VALIDSIG ") \
-    ] \
-if len(valid) != 1: \
-    raise SystemExit(f"expected exactly one valid signature, got {len(valid)}") \
-fields = valid[0] \
-if len(fields) != 12: \
-    raise SystemExit("VALIDSIG did not include the primary-key fingerprint") \
-actual_signer = fields[2].upper() \
-actual_primary = fields[11].upper() \
-if actual_signer != expected_signer: \
-    raise SystemExit(f"wrong signing key: {actual_signer}") \
-if actual_primary != expected_primary: \
-    raise SystemExit(f"wrong primary key: {actual_primary}") \
-PY \
+    python3 -c ' \
+import sys
+
+expected_signer = sys.argv[1].replace(" ", "").upper()
+expected_primary = sys.argv[2].replace(" ", "").upper()
+
+with open(sys.argv[3], encoding="ascii") as f:
+    valid = [
+        line.split()
+        for line in f
+        if line.startswith("[GNUPG:] VALIDSIG ")
+    ]
+
+if len(valid) != 1:
+    raise SystemExit(f"expected exactly one valid signature, got {len(valid)}")
+
+fields = valid[0]
+if len(fields) != 12:
+    raise SystemExit("VALIDSIG did not include the primary-key fingerprint")
+
+if fields[2].upper() != expected_signer:
+    raise SystemExit(f"wrong signing key: {fields[2]}")
+if fields[11].upper() != expected_primary:
+    raise SystemExit(f"wrong primary key: {fields[11]}")
+' "${PROJECT_SIGNING_FINGERPRINT}" \
+  "${PROJECT_FINGERPRINT}" /run/verify/gpg.status; \
     tagged="$(grep -e '^SHA256 [(]' /run/verify/zlib.lock)"; \
     curl --fail --show-error --location --proto '=https' \
       "${ZLIB_SOURCE_URL}" -o "/out/zlib-${ZLIB_VERSION}.tar.gz"; \
