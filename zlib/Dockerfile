@@ -16,6 +16,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=tmpfs,target=/run/verify \
+    --mount=type=bind,source=scripts/verify-gpg-status.py,target=/tmp/verify-gpg-status.py,ro \
     set -eu; \
     mkdir -p /out /verified /run/verify/cert-store /run/verify/gnupg; \
     chmod 00700 /run/verify/gnupg; \
@@ -34,27 +35,10 @@ RUN --mount=type=tmpfs,target=/run/verify \
     gpg --homedir /run/verify/gnupg --batch --no-tty \
       --status-fd 3 3>/run/verify/gpg.status --verify \
       "/trust/zlib-${ZLIB_VERSION}.asc"; \
-    python3 -c ' \
-import sys \
-expected_signer = sys.argv[1].replace(" ", "").upper() \
-expected_primary = sys.argv[2].replace(" ", "").upper() \
-with open(sys.argv[3], encoding="ascii") as f: \
-    valid = [ \
-        line.split() \
-        for line in f \
-        if line.startswith("[GNUPG:] VALIDSIG ") \
-    ] \
-if len(valid) != 1: \
-    raise SystemExit(f"expected exactly one valid signature, got {len(valid)}") \
-fields = valid[0] \
-if len(fields) != 12: \
-    raise SystemExit("VALIDSIG did not include the primary-key fingerprint") \
-if fields[2].upper() != expected_signer: \
-    raise SystemExit(f"wrong signing key: {fields[2]}") \
-if fields[11].upper() != expected_primary: \
-    raise SystemExit(f"wrong primary key: {fields[11]}") \
-' "${PROJECT_SIGNING_FINGERPRINT}" \
-  "${PROJECT_FINGERPRINT}" /run/verify/gpg.status; \
+    python3 /tmp/verify-gpg-status.py \
+      "${PROJECT_SIGNING_FINGERPRINT}" \
+      "${PROJECT_FINGERPRINT}" \
+      /run/verify/gpg.status; \
     tagged="$(grep -e '^SHA256 [(]' /run/verify/zlib.lock)"; \
     curl --fail --show-error --location --proto '=https' \
       "${ZLIB_SOURCE_URL}" -o "/out/zlib-${ZLIB_VERSION}.tar.gz"; \
